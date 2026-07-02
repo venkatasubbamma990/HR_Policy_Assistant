@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,13 +13,17 @@ const defaultDocumentsDir = "documents"
 
 // Config holds application settings for the HR Policy RAG assistant.
 type Config struct {
-	DocumentsDir  string
-	OpenAIAPIKey  string
-	EmbedModel    string
-	ChatModel     string
-	IngestVerbose bool
-	LogLevel      string
-	LogFormat     string
+	DocumentsDir       string
+	OpenAIAPIKey       string
+	EmbedModel         string
+	EmbedDimensions    int
+	ChatModel          string
+	DatabaseURL        string
+	PGVectorCollection string
+	IndexForce         bool
+	IngestVerbose      bool
+	LogLevel           string
+	LogFormat          string
 	ChunkMinTokens     int
 	ChunkMaxTokens     int
 	ChunkOverlapTokens int
@@ -31,6 +36,11 @@ func (c *Config) ChunkConfig() chunk.Config {
 		MaxTokens:     c.ChunkMaxTokens,
 		OverlapTokens: c.ChunkOverlapTokens,
 	}
+}
+
+// IndexingEnabled reports whether vector indexing is configured.
+func (c *Config) IndexingEnabled() bool {
+	return c.DatabaseURL != "" && c.OpenAIAPIKey != ""
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -47,18 +57,28 @@ func Load() (*Config, error) {
 
 	defaults := chunk.DefaultConfig()
 
-	return &Config{
+	cfg := &Config{
 		DocumentsDir:       documentsDir,
 		OpenAIAPIKey:       os.Getenv("OPENAI_API_KEY"),
 		EmbedModel:         envOrDefault("HR_EMBED_MODEL", "text-embedding-3-small"),
+		EmbedDimensions:    envIntOrDefault("HR_EMBED_DIMENSIONS", 1536),
 		ChatModel:          envOrDefault("HR_CHAT_MODEL", "gpt-4o-mini"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		PGVectorCollection: envOrDefault("PGVECTOR_COLLECTION", "hr_policies"),
+		IndexForce:         os.Getenv("HR_INDEX_FORCE") == "1",
 		IngestVerbose:      os.Getenv("HR_INGEST_VERBOSE") == "1",
 		LogLevel:           envOrDefault("LOG_LEVEL", "info"),
 		LogFormat:          envOrDefault("LOG_FORMAT", "console"),
 		ChunkMinTokens:     envIntOrDefault("HR_CHUNK_MIN_TOKENS", defaults.MinTokens),
 		ChunkMaxTokens:     envIntOrDefault("HR_CHUNK_MAX_TOKENS", defaults.MaxTokens),
 		ChunkOverlapTokens: envIntOrDefault("HR_CHUNK_OVERLAP_TOKENS", defaults.OverlapTokens),
-	}, nil
+	}
+
+	if cfg.EmbedDimensions <= 0 {
+		return nil, fmt.Errorf("HR_EMBED_DIMENSIONS must be positive")
+	}
+
+	return cfg, nil
 }
 
 func envOrDefault(key, fallback string) string {

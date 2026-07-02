@@ -1,16 +1,43 @@
 services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: hrpolicy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hrpolicy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hrpolicy}
+      POSTGRES_DB: ${POSTGRES_DB:-hrpolicy}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hrpolicy} -d ${POSTGRES_DB:-hrpolicy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   hrpolicy:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: hrpolicy-assistant
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       HR_DOCUMENTS_DIR: /app/documents
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DATABASE_URL: postgres://${POSTGRES_USER:-hrpolicy}:${POSTGRES_PASSWORD:-hrpolicy}@postgres:5432/${POSTGRES_DB:-hrpolicy}?sslmode=disable
+      PGVECTOR_COLLECTION: ${PGVECTOR_COLLECTION:-hr_policies}
       HR_EMBED_MODEL: ${HR_EMBED_MODEL:-text-embedding-3-small}
+      HR_EMBED_DIMENSIONS: ${HR_EMBED_DIMENSIONS:-1536}
       HR_CHAT_MODEL: ${HR_CHAT_MODEL:-gpt-4o-mini}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
     volumes:
       - ./documents:/app/documents:ro
+
+volumes:
+  pgdata:

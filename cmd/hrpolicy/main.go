@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"hrpolicyassistant/internal/config"
+	"hrpolicyassistant/internal/index"
 	"hrpolicyassistant/internal/ingest"
 	"hrpolicyassistant/internal/logger"
 	"hrpolicyassistant/internal/rag"
@@ -37,6 +38,7 @@ func main() {
 		zap.Int("chunk_min_tokens", cfg.ChunkMinTokens),
 		zap.Int("chunk_max_tokens", cfg.ChunkMaxTokens),
 		zap.Int("chunk_overlap_tokens", cfg.ChunkOverlapTokens),
+		zap.Bool("indexing_enabled", cfg.IndexingEnabled()),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -48,7 +50,23 @@ func main() {
 		log.Fatal("document ingestion failed", zap.Error(err))
 	}
 
-	engine := rag.NewEngine(cfg, result.Chunks, log)
+	if cfg.IndexingEnabled() {
+		indexer := index.NewIndexer(cfg, log)
+		indexResult, err := indexer.Run(ctx, result.Documents, result.Chunks)
+		if err != nil {
+			log.Fatal("vector indexing failed", zap.Error(err))
+		}
+		if indexResult.Skipped {
+			log.Info("using existing vector index")
+		}
+	} else {
+		log.Warn("vector indexing disabled; set DATABASE_URL and OPENAI_API_KEY to enable pgvector")
+	}
+
+	engine, err := rag.NewEngine(ctx, cfg, log)
+	if err != nil {
+		log.Fatal("rag engine init failed", zap.Error(err))
+	}
 
 	if err := engine.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatal("rag engine stopped with error", zap.Error(err))

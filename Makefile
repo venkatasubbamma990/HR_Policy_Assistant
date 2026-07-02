@@ -2,18 +2,22 @@ APP_NAME := hrpolicy
 BINARY   := bin/$(APP_NAME)
 MAIN     := ./cmd/hrpolicy
 INGEST   := ./cmd/ingest
+INDEX    := ./cmd/index
 COMPOSE  := docker compose
 
 # Use the locally installed Go toolchain (avoids auto-download in WSL/offline envs)
 export GOTOOLCHAIN := local
 
-.PHONY: build ingest test up down docker-build clean
+.PHONY: build ingest index test up down docker-build clean
 
 build:
 	go build -o $(BINARY) $(MAIN)
 
 ingest:
 	go run $(INGEST)
+
+index:
+	go run $(INDEX)
 
 test:
 	go test ./...
