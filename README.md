@@ -62,7 +62,7 @@ HRPolicyAssistant/
 
 ## Prerequisites
 
-- **Go 1.23+**
+- **Go 1.22+** (install in WSL: `sudo apt update && sudo apt install -y golang-go`, or use [go.dev/dl](https://go.dev/dl/))
 - **Docker & Docker Compose** (optional, for containerized runs)
 - **Make** (optional, for convenience targets)
 - **OpenAI API key** (optional for now; required when LLM/embeddings are added)

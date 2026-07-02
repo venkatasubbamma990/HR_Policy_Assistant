@@ -5,25 +5,35 @@ import (
 
 	"go.uber.org/zap"
 
+	"hrpolicyassistant/internal/chunk"
+	"hrpolicyassistant/internal/config"
 	"hrpolicyassistant/internal/documents"
 )
 
-// Pipeline loads and parses HR policy documents for indexing.
+// Result holds the output of the full ingestion and chunking pipeline.
+type Result struct {
+	Documents []documents.PolicyDocument
+	Chunks    []chunk.Chunk
+}
+
+// Pipeline loads, parses, and chunks HR policy documents for indexing.
 type Pipeline struct {
-	loader *documents.Loader
-	log    *zap.Logger
+	loader  *documents.Loader
+	chunker *chunk.Chunker
+	log     *zap.Logger
 }
 
 // NewPipeline creates an ingestion pipeline for the given documents directory.
-func NewPipeline(documentsDir string, log *zap.Logger) *Pipeline {
+func NewPipeline(cfg *config.Config, log *zap.Logger) *Pipeline {
 	return &Pipeline{
-		loader: documents.NewLoader(documentsDir, log),
-		log:    log.Named("ingest"),
+		loader:  documents.NewLoader(cfg.DocumentsDir, log),
+		chunker: chunk.NewChunker(cfg.ChunkConfig(), log),
+		log:     log.Named("ingest"),
 	}
 }
 
-// Run executes the document ingestion (indexing) pipeline.
-func (p *Pipeline) Run() ([]documents.PolicyDocument, error) {
+// Run executes document load, parse, and chunking for indexing.
+func (p *Pipeline) Run() (*Result, error) {
 	p.log.Info("starting document ingestion pipeline")
 
 	docs, err := p.loader.LoadAll()
@@ -33,12 +43,23 @@ func (p *Pipeline) Run() ([]documents.PolicyDocument, error) {
 	}
 
 	p.logResults(docs)
-	return docs, nil
+
+	p.log.Info("starting document chunking pipeline",
+		zap.Int("document_count", len(docs)),
+	)
+
+	chunks := p.chunker.ChunkAll(docs)
+	p.logChunkResults(chunks)
+
+	return &Result{
+		Documents: docs,
+		Chunks:    chunks,
+	}, nil
 }
 
-// LogVerboseDetails emits debug-level logs for each parsed section.
-func (p *Pipeline) LogVerboseDetails(docs []documents.PolicyDocument) {
-	for _, doc := range docs {
+// LogVerboseDetails emits debug-level logs for each parsed section and chunk.
+func (p *Pipeline) LogVerboseDetails(result *Result) {
+	for _, doc := range result.Documents {
 		p.log.Debug("policy document details",
 			zap.String("title", doc.Title),
 			zap.String("source", doc.Metadata.Source),
@@ -59,6 +80,15 @@ func (p *Pipeline) LogVerboseDetails(docs []documents.PolicyDocument) {
 			)
 		}
 	}
+
+	for _, c := range result.Chunks {
+		p.log.Debug("indexed chunk",
+			zap.String("chunk_id", c.ID),
+			zap.String("source", c.Source),
+			zap.String("section_path", c.SectionPath),
+			zap.Int("token_count", c.TokenCount),
+		)
+	}
 }
 
 func (p *Pipeline) logResults(docs []documents.PolicyDocument) {
@@ -72,6 +102,22 @@ func (p *Pipeline) logResults(docs []documents.PolicyDocument) {
 			zap.String("version", doc.Metadata.Version),
 			zap.String("effective_date", doc.Metadata.EffectiveDate),
 			zap.Int("sections", len(doc.Sections)),
+		)
+	}
+}
+
+func (p *Pipeline) logChunkResults(chunks []chunk.Chunk) {
+	p.log.Info("document chunking completed", zap.Int("chunk_count", len(chunks)))
+
+	bySource := make(map[string]int)
+	for _, c := range chunks {
+		bySource[c.Source]++
+	}
+
+	for source, count := range bySource {
+		p.log.Info("document chunks created",
+			zap.String("source", source),
+			zap.Int("chunk_count", count),
 		)
 	}
 }

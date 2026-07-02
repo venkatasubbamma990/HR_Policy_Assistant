@@ -18,6 +18,9 @@ type Loader struct {
 
 // NewLoader creates a loader for the given documents directory.
 func NewLoader(dir string, log *zap.Logger) *Loader {
+	if log == nil {
+		log = zap.NewNop()
+	}
 	return &Loader{
 		dir: dir,
 		log: log.Named("documents"),

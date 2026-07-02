@@ -27,17 +27,23 @@ func main() {
 	log.Info("starting document ingestion",
 		zap.String("documents_dir", cfg.DocumentsDir),
 		zap.Bool("verbose", cfg.IngestVerbose),
+		zap.Int("chunk_min_tokens", cfg.ChunkMinTokens),
+		zap.Int("chunk_max_tokens", cfg.ChunkMaxTokens),
+		zap.Int("chunk_overlap_tokens", cfg.ChunkOverlapTokens),
 	)
 
-	pipeline := ingest.NewPipeline(cfg.DocumentsDir, log)
-	docs, err := pipeline.Run()
+	pipeline := ingest.NewPipeline(cfg, log)
+	result, err := pipeline.Run()
 	if err != nil {
 		log.Fatal("document ingestion failed", zap.Error(err))
 	}
 
 	if cfg.IngestVerbose {
-		pipeline.LogVerboseDetails(docs)
+		pipeline.LogVerboseDetails(result)
 	}
 
-	log.Info("document ingestion finished", zap.Int("document_count", len(docs)))
+	log.Info("document ingestion finished",
+		zap.Int("document_count", len(result.Documents)),
+		zap.Int("chunk_count", len(result.Chunks)),
+	)
 }

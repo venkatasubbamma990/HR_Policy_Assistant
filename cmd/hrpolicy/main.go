@@ -34,22 +34,28 @@ func main() {
 		zap.String("documents_dir", cfg.DocumentsDir),
 		zap.String("log_level", cfg.LogLevel),
 		zap.String("log_format", cfg.LogFormat),
+		zap.Int("chunk_min_tokens", cfg.ChunkMinTokens),
+		zap.Int("chunk_max_tokens", cfg.ChunkMaxTokens),
+		zap.Int("chunk_overlap_tokens", cfg.ChunkOverlapTokens),
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pipeline := ingest.NewPipeline(cfg.DocumentsDir, log)
-	docs, err := pipeline.Run()
+	pipeline := ingest.NewPipeline(cfg, log)
+	result, err := pipeline.Run()
 	if err != nil {
 		log.Fatal("document ingestion failed", zap.Error(err))
 	}
 
-	engine := rag.NewEngine(cfg, docs, log)
+	engine := rag.NewEngine(cfg, result.Chunks, log)
 
 	if err := engine.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatal("rag engine stopped with error", zap.Error(err))
 	}
 
-	log.Info("HR Policy Assistant stopped")
+	log.Info("HR Policy Assistant stopped",
+		zap.Int("documents", len(result.Documents)),
+		zap.Int("chunks", len(result.Chunks)),
+	)
 }
