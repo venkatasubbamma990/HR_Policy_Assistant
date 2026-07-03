@@ -3,12 +3,13 @@ BINARY   := bin/$(APP_NAME)
 MAIN     := ./cmd/hrpolicy
 INGEST   := ./cmd/ingest
 INDEX    := ./cmd/index
+ASK      := ./cmd/ask
 COMPOSE  := docker compose
 
 # Use the locally installed Go toolchain (avoids auto-download in WSL/offline envs)
 export GOTOOLCHAIN := local
 
-.PHONY: build ingest index test up down docker-build clean
+.PHONY: build ingest index ask test up down docker-build clean
 
 build:
 	go build -o $(BINARY) $(MAIN)
@@ -18,6 +19,9 @@ ingest:
 
 index:
 	go run $(INDEX)
+
+ask:
+	go run $(ASK) -q "$(Q)"
 
 test:
 	go test ./...

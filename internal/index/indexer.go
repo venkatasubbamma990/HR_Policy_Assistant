@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tmc/langchaingo/embeddings"
-	"github.com/tmc/langchaingo/llms/openai"
+	langchainembed "github.com/tmc/langchaingo/embeddings"
 	"github.com/tmc/langchaingo/schema"
 	"github.com/tmc/langchaingo/vectorstores/pgvector"
 	"go.uber.org/zap"
@@ -14,6 +13,7 @@ import (
 	"hrpolicyassistant/internal/chunk"
 	"hrpolicyassistant/internal/config"
 	"hrpolicyassistant/internal/documents"
+	appembed "hrpolicyassistant/internal/embeddings"
 )
 
 // Result describes a vector indexing run.
@@ -79,7 +79,7 @@ func (idx *Indexer) Run(ctx context.Context, docs []documents.PolicyDocument, ch
 		}, nil
 	}
 
-	embedder, err := idx.newEmbedder()
+	embedder, err := appembed.NewOpenAIEmbedder(idx.cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -140,24 +140,6 @@ func (idx *Indexer) Run(ctx context.Context, docs []documents.PolicyDocument, ch
 	}, nil
 }
 
-func (idx *Indexer) newEmbedder() (embeddings.Embedder, error) {
-	llm, err := openai.New(
-		openai.WithToken(idx.cfg.OpenAIAPIKey),
-		openai.WithEmbeddingModel(idx.cfg.EmbedModel),
-		openai.WithEmbeddingDimensions(idx.cfg.EmbedDimensions),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("create openai client: %w", err)
-	}
-
-	embedder, err := embeddings.NewEmbedder(llm)
-	if err != nil {
-		return nil, fmt.Errorf("create embedder: %w", err)
-	}
-
-	return embedder, nil
-}
-
 func (idx *Indexer) addDocumentsInBatches(ctx context.Context, store pgvector.Store, docs []schema.Document) error {
 	for start := 0; start < len(docs); start += indexBatchSize {
 		end := start + indexBatchSize
@@ -183,23 +165,14 @@ func (idx *Indexer) addDocumentsInBatches(ctx context.Context, store pgvector.St
 }
 
 // OpenStore creates a pgvector store for query-time retrieval using the same embedder model.
-func OpenStore(ctx context.Context, cfg *config.Config) (pgvector.Store, embeddings.Embedder, error) {
+func OpenStore(ctx context.Context, cfg *config.Config) (pgvector.Store, langchainembed.Embedder, error) {
 	if !cfg.IndexingEnabled() {
 		return pgvector.Store{}, nil, fmt.Errorf("indexing requires DATABASE_URL and OPENAI_API_KEY")
 	}
 
-	llm, err := openai.New(
-		openai.WithToken(cfg.OpenAIAPIKey),
-		openai.WithEmbeddingModel(cfg.EmbedModel),
-		openai.WithEmbeddingDimensions(cfg.EmbedDimensions),
-	)
+	embedder, err := appembed.NewOpenAIEmbedder(cfg)
 	if err != nil {
-		return pgvector.Store{}, nil, fmt.Errorf("create openai client: %w", err)
-	}
-
-	embedder, err := embeddings.NewEmbedder(llm)
-	if err != nil {
-		return pgvector.Store{}, nil, fmt.Errorf("create embedder: %w", err)
+		return pgvector.Store{}, nil, err
 	}
 
 	store, err := pgvector.New(

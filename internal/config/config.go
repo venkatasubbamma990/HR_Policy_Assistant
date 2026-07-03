@@ -27,6 +27,7 @@ type Config struct {
 	ChunkMinTokens     int
 	ChunkMaxTokens     int
 	ChunkOverlapTokens int
+	HTTPPort           int
 }
 
 // ChunkConfig returns chunking settings from configuration.
@@ -41,6 +42,11 @@ func (c *Config) ChunkConfig() chunk.Config {
 // IndexingEnabled reports whether vector indexing is configured.
 func (c *Config) IndexingEnabled() bool {
 	return c.DatabaseURL != "" && c.OpenAIAPIKey != ""
+}
+
+// HTTPAddr returns the query API listen address.
+func (c *Config) HTTPAddr() string {
+	return fmt.Sprintf(":%d", c.HTTPPort)
 }
 
 // Load reads configuration from environment variables with sensible defaults.
@@ -72,6 +78,7 @@ func Load() (*Config, error) {
 		ChunkMinTokens:     envIntOrDefault("HR_CHUNK_MIN_TOKENS", defaults.MinTokens),
 		ChunkMaxTokens:     envIntOrDefault("HR_CHUNK_MAX_TOKENS", defaults.MaxTokens),
 		ChunkOverlapTokens: envIntOrDefault("HR_CHUNK_OVERLAP_TOKENS", defaults.OverlapTokens),
+		HTTPPort:           envIntOrDefault("HR_HTTP_PORT", 8080),
 	}
 
 	if cfg.EmbedDimensions <= 0 {
