@@ -6,20 +6,20 @@ import (
 
 	"go.uber.org/zap"
 
-	"hrpolicyassistant/internal/query"
+	"hrpolicyassistant/internal/retrieval"
 )
 
 // Handler serves runtime query endpoints.
 type Handler struct {
-	pipeline *query.Pipeline
-	log      *zap.Logger
+	asker Asker
+	log   *zap.Logger
 }
 
 // NewHandler creates an HTTP handler for the query pipeline.
-func NewHandler(pipeline *query.Pipeline, log *zap.Logger) *Handler {
+func NewHandler(asker Asker, log *zap.Logger) *Handler {
 	return &Handler{
-		pipeline: pipeline,
-		log:      log.Named("api"),
+		asker: asker,
+		log:   log.Named("api"),
 	}
 }
 
@@ -27,17 +27,26 @@ type queryRequest struct {
 	Question string `json:"question"`
 }
 
-type queryResponse struct {
-	Question         string         `json:"question"`
-	Normalized       string         `json:"normalized"`
-	Intent           string         `json:"intent"`
-	PolicyTypeFilter string         `json:"policy_type_filter"`
-	MetadataFilter   map[string]any `json:"metadata_filter,omitempty"`
-	EmbedModel       string         `json:"embed_model"`
-	VectorDimensions int            `json:"vector_dimensions"`
+// AskResponse is the API response for a user question.
+type AskResponse struct {
+	Question         string            `json:"question"`
+	Normalized       string            `json:"normalized"`
+	Intent           string            `json:"intent"`
+	PolicyTypeFilter string            `json:"policy_type_filter"`
+	MetadataFilter   map[string]any    `json:"metadata_filter,omitempty"`
+	EmbedModel       string            `json:"embed_model"`
+	VectorDimensions int               `json:"vector_dimensions"`
+	Retrieval        retrievalResponse `json:"retrieval"`
 }
 
-// HandleQuery processes Step 8 and Step 9 for an incoming user question.
+type retrievalResponse struct {
+	TopK         int               `json:"top_k"`
+	FilterUsed   bool              `json:"filter_used"`
+	FallbackUsed bool              `json:"fallback_used"`
+	Chunks       []retrieval.Chunk `json:"chunks"`
+}
+
+// HandleQuery processes Steps 8–10 for an incoming user question.
 func (h *Handler) HandleQuery(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -50,29 +59,42 @@ func (h *Handler) HandleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.pipeline.Process(r.Context(), req.Question)
+	result, err := h.asker.Ask(r.Context(), req.Question)
 	if err != nil {
 		h.log.Error("query processing failed", zap.Error(err))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	resp := queryResponse{
-		Question:         result.Question,
-		Normalized:       result.Normalized,
-		Intent:           result.Intent,
-		PolicyTypeFilter: result.PolicyTypeFilter,
-		MetadataFilter:   result.MetadataFilter,
-		EmbedModel:       result.EmbedModel,
-		VectorDimensions: result.VectorDimensions,
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(toAskResponse(result))
 }
 
 // HandleHealth reports service health.
 func (h *Handler) HandleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
+}
+
+func toAskResponse(result *AskResult) AskResponse {
+	resp := AskResponse{
+		Question:         result.Query.Question,
+		Normalized:       result.Query.Normalized,
+		Intent:           result.Query.Intent,
+		PolicyTypeFilter: result.Query.PolicyTypeFilter,
+		MetadataFilter:   result.Query.MetadataFilter,
+		EmbedModel:       result.Query.EmbedModel,
+		VectorDimensions: result.Query.VectorDimensions,
+	}
+
+	if result.Retrieval != nil {
+		resp.Retrieval = retrievalResponse{
+			TopK:         result.Retrieval.TopK,
+			FilterUsed:   result.Retrieval.FilterUsed,
+			FallbackUsed: result.Retrieval.FallbackUsed,
+			Chunks:       result.Retrieval.Chunks,
+		}
+	}
+
+	return resp
 }

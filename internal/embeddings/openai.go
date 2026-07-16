@@ -9,17 +9,25 @@ import (
 	"hrpolicyassistant/internal/config"
 )
 
-// NewOpenAIEmbedder creates a langchaingo embedder using the configured OpenAI model.
+// NewOpenAIEmbedder creates a langchaingo embedder using an OpenAI-compatible endpoint.
+// Works with OpenAI, LM Studio, and other OpenAI-compatible local servers.
 func NewOpenAIEmbedder(cfg *config.Config) (embeddings.Embedder, error) {
 	if cfg.OpenAIAPIKey == "" {
-		return nil, fmt.Errorf("OPENAI_API_KEY is required")
+		return nil, fmt.Errorf("OPENAI_API_KEY is required (use lm-studio when using LM Studio)")
 	}
 
-	llm, err := openai.New(
+	opts := []openai.Option{
 		openai.WithToken(cfg.OpenAIAPIKey),
 		openai.WithEmbeddingModel(cfg.EmbedModel),
-		openai.WithEmbeddingDimensions(cfg.EmbedDimensions),
-	)
+	}
+	if cfg.OpenAIBaseURL != "" {
+		opts = append(opts, openai.WithBaseURL(cfg.OpenAIBaseURL))
+	}
+	if cfg.EmbedDimensions > 0 {
+		opts = append(opts, openai.WithEmbeddingDimensions(cfg.EmbedDimensions))
+	}
+
+	llm, err := openai.New(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("create openai client: %w", err)
 	}

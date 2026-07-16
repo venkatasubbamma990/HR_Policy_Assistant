@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	question := flag.String("q", "", "user question to preprocess and embed")
+	question := flag.String("q", "", "user question to preprocess, embed, and retrieve")
 	flag.Parse()
 
 	if *question == "" && flag.NArg() > 0 {
@@ -47,14 +47,27 @@ func main() {
 	}
 	defer func() { _ = engine.Close() }()
 
-	result, err := engine.ProcessQuery(ctx, *question)
+	result, err := engine.Ask(ctx, *question)
 	if err != nil {
-		log.Fatal("query processing failed", zap.Error(err))
+		log.Fatal("query failed", zap.Error(err))
 	}
 
-	fmt.Printf("Question:          %s\n", result.Question)
-	fmt.Printf("Intent:            %s\n", result.Intent)
-	fmt.Printf("Policy filter:     %s\n", result.PolicyTypeFilter)
-	fmt.Printf("Embed model:       %s\n", result.EmbedModel)
-	fmt.Printf("Vector dimensions: %d\n", result.VectorDimensions)
+	fmt.Printf("Question:      %s\n", result.Query.Question)
+	fmt.Printf("Intent:        %s\n", result.Query.Intent)
+	fmt.Printf("Embed model:   %s\n", result.Query.EmbedModel)
+	fmt.Printf("Chunks found:  %d\n", len(result.Retrieval.Chunks))
+
+	for i, chunk := range result.Retrieval.Chunks {
+		fmt.Printf("\n--- Chunk %d (score=%.3f) ---\n", i+1, chunk.Score)
+		fmt.Printf("Source:  %s\n", chunk.Source)
+		fmt.Printf("Section: %s\n", chunk.SectionPath)
+		fmt.Printf("%s\n", truncate(chunk.Content, 300))
+	}
+}
+
+func truncate(text string, max int) string {
+	if len(text) <= max {
+		return text
+	}
+	return text[:max] + "..."
 }

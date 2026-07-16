@@ -15,6 +15,7 @@ const defaultDocumentsDir = "documents"
 type Config struct {
 	DocumentsDir       string
 	OpenAIAPIKey       string
+	OpenAIBaseURL      string
 	EmbedModel         string
 	EmbedDimensions    int
 	ChatModel          string
@@ -28,6 +29,8 @@ type Config struct {
 	ChunkMaxTokens     int
 	ChunkOverlapTokens int
 	HTTPPort           int
+	RetrievalTopK      int
+	RetrievalMinScore  float32
 }
 
 // ChunkConfig returns chunking settings from configuration.
@@ -41,7 +44,12 @@ func (c *Config) ChunkConfig() chunk.Config {
 
 // IndexingEnabled reports whether vector indexing is configured.
 func (c *Config) IndexingEnabled() bool {
-	return c.DatabaseURL != "" && c.OpenAIAPIKey != ""
+	return c.DatabaseURL != "" && c.LLMConfigured()
+}
+
+// LLMConfigured reports whether an OpenAI-compatible LLM endpoint is configured.
+func (c *Config) LLMConfigured() bool {
+	return c.OpenAIAPIKey != ""
 }
 
 // HTTPAddr returns the query API listen address.
@@ -66,6 +74,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		DocumentsDir:       documentsDir,
 		OpenAIAPIKey:       os.Getenv("OPENAI_API_KEY"),
+		OpenAIBaseURL:      os.Getenv("OPENAI_BASE_URL"),
 		EmbedModel:         envOrDefault("HR_EMBED_MODEL", "text-embedding-3-small"),
 		EmbedDimensions:    envIntOrDefault("HR_EMBED_DIMENSIONS", 1536),
 		ChatModel:          envOrDefault("HR_CHAT_MODEL", "gpt-4o-mini"),
@@ -79,6 +88,8 @@ func Load() (*Config, error) {
 		ChunkMaxTokens:     envIntOrDefault("HR_CHUNK_MAX_TOKENS", defaults.MaxTokens),
 		ChunkOverlapTokens: envIntOrDefault("HR_CHUNK_OVERLAP_TOKENS", defaults.OverlapTokens),
 		HTTPPort:           envIntOrDefault("HR_HTTP_PORT", 8080),
+		RetrievalTopK:      envIntOrDefault("HR_RETRIEVAL_TOP_K", 5),
+		RetrievalMinScore:  envFloatOrDefault("HR_RETRIEVAL_MIN_SCORE", 0.7),
 	}
 
 	if cfg.EmbedDimensions <= 0 {
@@ -105,4 +116,16 @@ func envIntOrDefault(key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func envFloatOrDefault(key string, fallback float32) float32 {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(raw, 32)
+	if err != nil {
+		return fallback
+	}
+	return float32(value)
 }

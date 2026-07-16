@@ -11,13 +11,18 @@ import (
 	"hrpolicyassistant/internal/config"
 	"hrpolicyassistant/internal/index"
 	"hrpolicyassistant/internal/query"
+	"hrpolicyassistant/internal/retrieval"
 )
+
+// AskResult is an alias for the API-layer ask result.
+type AskResult = api.AskResult
 
 // Engine orchestrates the RAG query pipeline and HTTP API.
 type Engine struct {
 	cfg              *config.Config
 	store            pgvector.Store
 	queryPipeline    *query.Pipeline
+	retriever        *retrieval.Retriever
 	vectorStoreReady bool
 	log              *zap.Logger
 }
@@ -40,6 +45,7 @@ func NewEngine(ctx context.Context, cfg *config.Config, log *zap.Logger) (*Engin
 
 	engine.store = store
 	engine.queryPipeline = query.NewPipeline(cfg, embedder, log)
+	engine.retriever = retrieval.NewRetriever(store, cfg, log)
 	engine.vectorStoreReady = true
 	return engine, nil
 }
@@ -52,6 +58,28 @@ func (e *Engine) ProcessQuery(ctx context.Context, question string) (*query.Resu
 	return e.queryPipeline.Process(ctx, question)
 }
 
+// Ask runs Steps 8–10: preprocess, embed, and retrieve relevant chunks.
+func (e *Engine) Ask(ctx context.Context, question string) (*api.AskResult, error) {
+	if !e.vectorStoreReady {
+		return nil, fmt.Errorf("vector store not configured; set DATABASE_URL and OPENAI_API_KEY")
+	}
+
+	queryResult, err := e.ProcessQuery(ctx, question)
+	if err != nil {
+		return nil, err
+	}
+
+	retrievalResult, err := e.retriever.Retrieve(ctx, queryResult)
+	if err != nil {
+		return nil, err
+	}
+
+	return &api.AskResult{
+		Query:     queryResult,
+		Retrieval: retrievalResult,
+	}, nil
+}
+
 // Run starts the HTTP query API until shutdown.
 func (e *Engine) Run(ctx context.Context) error {
 	e.log.Info("RAG engine started",
@@ -60,6 +88,8 @@ func (e *Engine) Run(ctx context.Context) error {
 		zap.Bool("openai_configured", e.cfg.OpenAIAPIKey != ""),
 		zap.Bool("vector_store_ready", e.vectorStoreReady),
 		zap.String("http_addr", e.cfg.HTTPAddr()),
+		zap.Int("retrieval_top_k", e.cfg.RetrievalTopK),
+		zap.Float32("retrieval_min_score", e.cfg.RetrievalMinScore),
 	)
 
 	if !e.vectorStoreReady {
@@ -68,7 +98,7 @@ func (e *Engine) Run(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	handler := api.NewHandler(e.queryPipeline, e.log)
+	handler := api.NewHandler(e, e.log)
 	server := api.NewServer(e.cfg.HTTPAddr(), handler, e.log)
 
 	err := server.Start(ctx)
