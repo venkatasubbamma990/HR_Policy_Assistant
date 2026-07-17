@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../services/api'
 
-export function useApiStatus(pollMs = 30000) {
+export function useApiStatus() {
   const [status, setStatus] = useState('checking')
 
   const check = useCallback(async () => {
@@ -15,9 +15,7 @@ export function useApiStatus(pollMs = 30000) {
 
   useEffect(() => {
     check()
-    const timer = setInterval(check, pollMs)
-    return () => clearInterval(timer)
-  }, [check, pollMs])
+  }, [check])
 
   return { status, refresh: check }
 }
