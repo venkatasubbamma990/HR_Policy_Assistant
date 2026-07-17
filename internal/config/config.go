@@ -59,6 +59,11 @@ func (c *Config) HTTPAddr() string {
 
 // Load reads configuration from environment variables with sensible defaults.
 func Load() (*Config, error) {
+	if err := loadEnvFile(".env"); err != nil {
+		return nil, fmt.Errorf("load .env: %w", err)
+	}
+	applyWSLOpenAIBaseURL()
+
 	wd, err := os.Getwd()
 	if err != nil {
 		return nil, err

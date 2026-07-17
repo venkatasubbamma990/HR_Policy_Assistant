@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"hrpolicyassistant/internal/config"
+	"hrpolicyassistant/internal/llm"
 )
 
 // Result is a preprocessed and embedded user question ready for retrieval.
@@ -61,6 +62,7 @@ func (p *Pipeline) Process(ctx context.Context, question string) (*Result, error
 
 	vector, err := p.embedder.EmbedQuery(ctx, normalized)
 	if err != nil {
+		err = llm.WrapAPIReachabilityError(p.cfg, err)
 		p.log.Error("failed to embed question", zap.Error(err))
 		return nil, fmt.Errorf("embed question: %w", err)
 	}

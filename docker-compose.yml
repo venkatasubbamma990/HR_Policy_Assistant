@@ -28,17 +28,18 @@ services:
         condition: service_healthy
     environment:
       HR_DOCUMENTS_DIR: /app/documents
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-lm-studio}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-http://host.docker.internal:1234/v1}
       DATABASE_URL: postgres://${POSTGRES_USER:-hrpolicy}:${POSTGRES_PASSWORD:-hrpolicy}@postgres:5432/${POSTGRES_DB:-hrpolicy}?sslmode=disable
       PGVECTOR_COLLECTION: ${PGVECTOR_COLLECTION:-hr_policies}
-      HR_EMBED_MODEL: ${HR_EMBED_MODEL:-text-embedding-3-small}
-      HR_EMBED_DIMENSIONS: ${HR_EMBED_DIMENSIONS:-1536}
-      HR_CHAT_MODEL: ${HR_CHAT_MODEL:-gpt-4o-mini}
+      HR_EMBED_MODEL: ${HR_EMBED_MODEL:-text-embedding-nomic-embed-text-v1.5}
+      HR_EMBED_DIMENSIONS: ${HR_EMBED_DIMENSIONS:-768}
+      HR_CHAT_MODEL: ${HR_CHAT_MODEL:-google/gemma-3-12b}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
       HR_HTTP_PORT: "8080"
     ports:
-      - "${HR_HTTP_PORT:-8080}:8080"
+      - "${HR_HTTP_PORT:-8081}:8080"
     volumes:
       - ./documents:/app/documents:ro
 

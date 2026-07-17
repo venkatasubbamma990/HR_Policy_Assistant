@@ -53,7 +53,7 @@ func main() {
 	}
 
 	fmt.Printf("Question: %s\n\n", result.Query.Question)
-	if result.Answer != nil {
+	if result.Answer != nil {	
 		fmt.Printf("Answer (%s):\n%s\n", result.Answer.ChatModel, result.Answer.Text)
 		if len(result.Answer.Citations) > 0 {
 			fmt.Println("\nCitations:")

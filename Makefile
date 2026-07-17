@@ -9,7 +9,7 @@ COMPOSE  := docker compose
 # Use the locally installed Go toolchain (avoids auto-download in WSL/offline envs)
 export GOTOOLCHAIN := local
 
-.PHONY: build ingest index ask test up down docker-build clean
+.PHONY: build ingest index ask test up down docker-build clean check-llm setup-wsl-llm
 
 build:
 	go build -o $(BINARY) $(MAIN)
@@ -22,6 +22,12 @@ index:
 
 ask:
 	go run $(ASK) -q "$(Q)"
+
+check-llm:
+	bash scripts/check-llm.sh
+
+setup-wsl-llm:
+	powershell.exe -ExecutionPolicy Bypass -File scripts/setup-wsl-llm.ps1
 
 test:
 	go test ./...
