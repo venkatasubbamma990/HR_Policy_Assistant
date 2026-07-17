@@ -14,8 +14,13 @@ const defaultWSLProxyPort = 12345
 
 // applyWSLOpenAIBaseURL rewrites localhost LM Studio URLs when running inside WSL.
 // Requires scripts/setup-wsl-llm.ps1 (Windows portproxy 12345 -> 1234) or mirrored networking.
+// Skipped inside Docker containers and when HR_WSL_LLM_DISABLE=1.
 func applyWSLOpenAIBaseURL() {
-	if !RunningInWSL() || os.Getenv("HR_WSL_LLM_DISABLE") == "1" {
+	if runningInContainer() || os.Getenv("HR_WSL_LLM_DISABLE") == "1" {
+		return
+	}
+
+	if !RunningInWSL() {
 		return
 	}
 

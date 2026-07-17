@@ -1,0 +1,35 @@
+import CitationList from './CitationList'
+
+function MessageBubble({ message }) {
+  const isUser = message.role === 'user'
+
+  return (
+    <div className={`message-row message-row--${message.role}`}>
+      <div
+        className={[
+          'message-bubble',
+          `message-bubble--${message.role}`,
+          message.isError ? 'message-bubble--error' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        <p className="message-bubble__text">{message.content}</p>
+
+        {!isUser && !message.isError ? (
+          <>
+            {message.meta?.chatModel ? (
+              <p className="message-bubble__meta">
+                Model: {message.meta.chatModel}
+                {message.meta.intent ? ` · Intent: ${message.meta.intent}` : ''}
+              </p>
+            ) : null}
+            <CitationList citations={message.citations} />
+          </>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+export default MessageBubble
