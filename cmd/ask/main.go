@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	question := flag.String("q", "", "user question to preprocess, embed, and retrieve")
+	question := flag.String("q", "", "user question to answer with HR policy RAG")
 	flag.Parse()
 
 	if *question == "" && flag.NArg() > 0 {
@@ -52,22 +52,14 @@ func main() {
 		log.Fatal("query failed", zap.Error(err))
 	}
 
-	fmt.Printf("Question:      %s\n", result.Query.Question)
-	fmt.Printf("Intent:        %s\n", result.Query.Intent)
-	fmt.Printf("Embed model:   %s\n", result.Query.EmbedModel)
-	fmt.Printf("Chunks found:  %d\n", len(result.Retrieval.Chunks))
-
-	for i, chunk := range result.Retrieval.Chunks {
-		fmt.Printf("\n--- Chunk %d (score=%.3f) ---\n", i+1, chunk.Score)
-		fmt.Printf("Source:  %s\n", chunk.Source)
-		fmt.Printf("Section: %s\n", chunk.SectionPath)
-		fmt.Printf("%s\n", truncate(chunk.Content, 300))
+	fmt.Printf("Question: %s\n\n", result.Query.Question)
+	if result.Answer != nil {
+		fmt.Printf("Answer (%s):\n%s\n", result.Answer.ChatModel, result.Answer.Text)
+		if len(result.Answer.Citations) > 0 {
+			fmt.Println("\nCitations:")
+			for _, citation := range result.Answer.Citations {
+				fmt.Printf("- [%d] %s | %s | %s\n", citation.Index, citation.Source, citation.DocumentID, citation.SectionPath)
+			}
+		}
 	}
-}
-
-func truncate(text string, max int) string {
-	if len(text) <= max {
-		return text
-	}
-	return text[:max] + "..."
 }

@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"hrpolicyassistant/internal/generation"
 	"hrpolicyassistant/internal/retrieval"
 )
 
@@ -29,14 +30,15 @@ type queryRequest struct {
 
 // AskResponse is the API response for a user question.
 type AskResponse struct {
-	Question         string            `json:"question"`
-	Normalized       string            `json:"normalized"`
-	Intent           string            `json:"intent"`
-	PolicyTypeFilter string            `json:"policy_type_filter"`
-	MetadataFilter   map[string]any    `json:"metadata_filter,omitempty"`
-	EmbedModel       string            `json:"embed_model"`
-	VectorDimensions int               `json:"vector_dimensions"`
-	Retrieval        retrievalResponse `json:"retrieval"`
+	Question         string             `json:"question"`
+	Normalized       string             `json:"normalized"`
+	Intent           string             `json:"intent"`
+	PolicyTypeFilter string             `json:"policy_type_filter"`
+	MetadataFilter   map[string]any     `json:"metadata_filter,omitempty"`
+	EmbedModel       string             `json:"embed_model"`
+	VectorDimensions int                `json:"vector_dimensions"`
+	Retrieval        retrievalResponse  `json:"retrieval"`
+	Answer           generationResponse `json:"answer"`
 }
 
 type retrievalResponse struct {
@@ -46,7 +48,13 @@ type retrievalResponse struct {
 	Chunks       []retrieval.Chunk `json:"chunks"`
 }
 
-// HandleQuery processes Steps 8–10 for an incoming user question.
+type generationResponse struct {
+	Text      string                `json:"text"`
+	ChatModel string                `json:"chat_model"`
+	Citations []generation.Citation `json:"citations"`
+}
+
+// HandleQuery processes Steps 8–11 for an incoming user question.
 func (h *Handler) HandleQuery(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -93,6 +101,14 @@ func toAskResponse(result *AskResult) AskResponse {
 			FilterUsed:   result.Retrieval.FilterUsed,
 			FallbackUsed: result.Retrieval.FallbackUsed,
 			Chunks:       result.Retrieval.Chunks,
+		}
+	}
+
+	if result.Answer != nil {
+		resp.Answer = generationResponse{
+			Text:      result.Answer.Text,
+			ChatModel: result.Answer.ChatModel,
+			Citations: result.Answer.Citations,
 		}
 	}
 

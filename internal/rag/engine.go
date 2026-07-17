@@ -9,6 +9,7 @@ import (
 
 	"hrpolicyassistant/internal/api"
 	"hrpolicyassistant/internal/config"
+	"hrpolicyassistant/internal/generation"
 	"hrpolicyassistant/internal/index"
 	"hrpolicyassistant/internal/query"
 	"hrpolicyassistant/internal/retrieval"
@@ -23,6 +24,7 @@ type Engine struct {
 	store            pgvector.Store
 	queryPipeline    *query.Pipeline
 	retriever        *retrieval.Retriever
+	generator        *generation.Generator
 	vectorStoreReady bool
 	log              *zap.Logger
 }
@@ -43,9 +45,16 @@ func NewEngine(ctx context.Context, cfg *config.Config, log *zap.Logger) (*Engin
 		return nil, fmt.Errorf("open vector store: %w", err)
 	}
 
+	generator, err := generation.NewGenerator(cfg, log)
+	if err != nil {
+		_ = store.Close()
+		return nil, fmt.Errorf("create answer generator: %w", err)
+	}
+
 	engine.store = store
 	engine.queryPipeline = query.NewPipeline(cfg, embedder, log)
 	engine.retriever = retrieval.NewRetriever(store, cfg, log)
+	engine.generator = generator
 	engine.vectorStoreReady = true
 	return engine, nil
 }
@@ -58,7 +67,7 @@ func (e *Engine) ProcessQuery(ctx context.Context, question string) (*query.Resu
 	return e.queryPipeline.Process(ctx, question)
 }
 
-// Ask runs Steps 8–10: preprocess, embed, and retrieve relevant chunks.
+// Ask runs Steps 8–11: preprocess, embed, retrieve, and generate a cited answer.
 func (e *Engine) Ask(ctx context.Context, question string) (*api.AskResult, error) {
 	if !e.vectorStoreReady {
 		return nil, fmt.Errorf("vector store not configured; set DATABASE_URL and OPENAI_API_KEY")
@@ -74,9 +83,15 @@ func (e *Engine) Ask(ctx context.Context, question string) (*api.AskResult, erro
 		return nil, err
 	}
 
+	answer, err := e.generator.Generate(ctx, queryResult.Question, retrievalResult)
+	if err != nil {
+		return nil, err
+	}
+
 	return &api.AskResult{
 		Query:     queryResult,
 		Retrieval: retrievalResult,
+		Answer:    answer,
 	}, nil
 }
 
