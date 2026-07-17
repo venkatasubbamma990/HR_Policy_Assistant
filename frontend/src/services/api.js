@@ -19,9 +19,10 @@ async function request(path, options = {}) {
 
 export const api = {
   health: () => request('/health'),
-  query: (question) =>
+  query: (question, { signal } = {}) =>
     request('/api/query', {
       method: 'POST',
       body: JSON.stringify({ question }),
+      signal,
     }),
 }

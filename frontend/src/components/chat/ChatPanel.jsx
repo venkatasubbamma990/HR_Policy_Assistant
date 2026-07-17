@@ -4,7 +4,7 @@ import EmptyState from './EmptyState'
 import MessageList from './MessageList'
 import SuggestedQuestions from './SuggestedQuestions'
 
-function ChatPanel({ category, messages, isLoading, onSend, onClear }) {
+function ChatPanel({ category, messages, isLoading, onSend, onStop, onClear }) {
   const hasMessages = messages.length > 0
 
   return (
@@ -31,7 +31,8 @@ function ChatPanel({ category, messages, isLoading, onSend, onClear }) {
 
       <ChatInput
         onSend={onSend}
-        disabled={isLoading}
+        onStop={onStop}
+        isLoading={isLoading}
         placeholder={`Ask me anything about ${category.label}…`}
       />
     </section>

@@ -49,6 +49,11 @@ const icons = {
       <path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z" />
     </svg>
   ),
+  stop: (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    </svg>
+  ),
 }
 
 export function PolicyIcon({ name }) {

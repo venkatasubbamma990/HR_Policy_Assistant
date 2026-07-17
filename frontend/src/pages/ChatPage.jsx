@@ -7,7 +7,7 @@ import { useChat } from '../hooks/useChat'
 
 function ChatPage() {
   const [activeCategoryId, setActiveCategoryId] = useState(DEFAULT_CATEGORY.id)
-  const { messages, isLoading, sendMessage, clearChat } = useChat()
+  const { messages, isLoading, sendMessage, stopGeneration, clearChat } = useChat()
   const { status: apiStatus } = useApiStatus()
 
   const activeCategory = useMemo(
@@ -27,6 +27,7 @@ function ChatPage() {
         messages={messages}
         isLoading={isLoading}
         onSend={sendMessage}
+        onStop={stopGeneration}
         onClear={clearChat}
       />
     </Layout>

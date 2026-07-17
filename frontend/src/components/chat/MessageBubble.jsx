@@ -17,13 +17,14 @@ function MessageBubble({ message }) {
           'message-bubble',
           `message-bubble--${message.role}`,
           message.isError ? 'message-bubble--error' : '',
+          message.isStopped ? 'message-bubble--stopped' : '',
         ]
           .filter(Boolean)
           .join(' ')}
       >
         <p className="message-bubble__text">{message.content}</p>
 
-        {!isUser && !message.isError ? (
+        {!isUser && !message.isError && !message.isStopped ? (
           <>
             {message.meta?.chatModel ? (
               <p className="message-bubble__meta">

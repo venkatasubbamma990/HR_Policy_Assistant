@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { PolicyIcon } from '../icons/PolicyIcons'
 
-function ChatInput({ onSend, disabled, placeholder }) {
+function ChatInput({ onSend, onStop, isLoading, placeholder }) {
   const [value, setValue] = useState('')
 
   const handleSubmit = (event) => {
     event.preventDefault()
     const question = value.trim()
-    if (!question || disabled) {
+    if (!question || isLoading) {
       return
     }
 
@@ -34,16 +34,26 @@ function ChatInput({ onSend, disabled, placeholder }) {
               handleSubmit(event)
             }
           }}
-          disabled={disabled}
         />
-        <button
-          type="submit"
-          className="chat-input__submit"
-          disabled={disabled || !value.trim()}
-          aria-label="Send message"
-        >
-          <PolicyIcon name="send" />
-        </button>
+        {isLoading ? (
+          <button
+            type="button"
+            className="chat-input__stop"
+            onClick={onStop}
+            aria-label="Stop generation"
+          >
+            <PolicyIcon name="stop" />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="chat-input__submit"
+            disabled={!value.trim()}
+            aria-label="Send message"
+          >
+            <PolicyIcon name="send" />
+          </button>
+        )}
       </div>
     </form>
   )
