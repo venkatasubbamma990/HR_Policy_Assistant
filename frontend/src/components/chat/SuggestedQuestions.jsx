@@ -5,7 +5,7 @@ function SuggestedQuestions({ questions, onSelect, disabled }) {
 
   return (
     <div className="suggested-questions">
-      <p className="suggested-questions__label">Try asking:</p>
+      <p className="suggested-questions__label">Suggested questions</p>
       <div className="suggested-questions__list">
         {questions.map((question) => (
           <button

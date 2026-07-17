@@ -1,10 +1,17 @@
 import CitationList from './CitationList'
+import { PolicyIcon } from '../icons/PolicyIcons'
 
 function MessageBubble({ message }) {
   const isUser = message.role === 'user'
 
   return (
     <div className={`message-row message-row--${message.role}`}>
+      {!isUser ? (
+        <span className="message-row__avatar message-row__avatar--bot">
+          <PolicyIcon name="spark" />
+        </span>
+      ) : null}
+
       <div
         className={[
           'message-bubble',
@@ -20,8 +27,8 @@ function MessageBubble({ message }) {
           <>
             {message.meta?.chatModel ? (
               <p className="message-bubble__meta">
-                Model: {message.meta.chatModel}
-                {message.meta.intent ? ` · Intent: ${message.meta.intent}` : ''}
+                {message.meta.chatModel}
+                {message.meta.intent ? ` · ${message.meta.intent}` : ''}
               </p>
             ) : null}
             <CitationList citations={message.citations} />

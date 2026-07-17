@@ -1,13 +1,15 @@
-function EmptyState() {
+import { PolicyIcon } from '../icons/PolicyIcons'
+
+function EmptyState({ category }) {
   return (
     <div className="chat-empty">
-      <div className="chat-empty__icon" aria-hidden="true">
-        HR
+      <div className="chat-empty__icon">
+        <PolicyIcon name={category.icon} />
       </div>
-      <h2>Ask about HR policies</h2>
+      <h2>Ask about {category.shortLabel}</h2>
       <p>
-        Get answers from NovaTech policy documents — leave, notice period, WFH,
-        salary, onboarding, and exit policies.
+        Get instant answers from NovaTech HR policy documents — powered by RAG
+        with cited sources from {category.label.toLowerCase()}.
       </p>
     </div>
   )

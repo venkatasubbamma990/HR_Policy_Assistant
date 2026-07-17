@@ -1,33 +1,29 @@
-import { SAMPLE_QUESTIONS } from '../../constants/sampleQuestions'
+import ChatHeader from './ChatHeader'
 import ChatInput from './ChatInput'
 import EmptyState from './EmptyState'
 import MessageList from './MessageList'
 import SuggestedQuestions from './SuggestedQuestions'
 
-function ChatPanel({ messages, isLoading, onSend, onClear }) {
+function ChatPanel({ category, messages, isLoading, onSend, onClear }) {
   const hasMessages = messages.length > 0
 
   return (
     <section className="chat-panel" aria-label="HR policy chat">
-      <div className="chat-panel__toolbar">
-        <p className="chat-panel__status">
-          {isLoading ? 'Retrieving policy answer…' : 'Ready'}
-        </p>
-        {hasMessages ? (
-          <button type="button" className="chat-panel__clear" onClick={onClear}>
-            Clear chat
-          </button>
-        ) : null}
-      </div>
+      <ChatHeader
+        category={category}
+        isLoading={isLoading}
+        onClear={onClear}
+        hasMessages={hasMessages}
+      />
 
       <div className="chat-panel__body">
-        {!hasMessages ? <EmptyState /> : null}
+        {!hasMessages ? <EmptyState category={category} /> : null}
         {hasMessages ? <MessageList messages={messages} isLoading={isLoading} /> : null}
       </div>
 
       {!hasMessages ? (
         <SuggestedQuestions
-          questions={SAMPLE_QUESTIONS}
+          questions={category.questions}
           onSelect={onSend}
           disabled={isLoading}
         />
@@ -36,7 +32,7 @@ function ChatPanel({ messages, isLoading, onSend, onClear }) {
       <ChatInput
         onSend={onSend}
         disabled={isLoading}
-        placeholder="Ask about leave, notice period, WFH, salary, onboarding, or exit…"
+        placeholder={`Ask me anything about ${category.label}…`}
       />
     </section>
   )
